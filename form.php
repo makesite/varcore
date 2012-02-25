@@ -1,6 +1,8 @@
 <?php
 
-function formalize($object, $action, $method, $errors, $extra_html = array()) {
+function formalize($object, $action=null, $method='POST', $errors=array(), $extra_html = array()) {
+
+	if ($action === null) $action = 'edit'.strtolower(get_class($object));
 
 	$fields = formObject($object, $errors);
 
@@ -79,8 +81,7 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 		$method = 'POST';
 	}
 
-	$output .= '<form action="'.$action.'" method="'.$method.'"'.$enc.'>'.PHP_EOL;
-	$output .= $_method;
+	/* Note: <form ...> is prepended at the end */
 
 	$output .= '<fieldset title="'.$fieldset.'">'.PHP_EOL;
 	foreach ($fields as $field) {
@@ -88,11 +89,13 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 		$property = $field['name'];
 		$input = $field['type'];
 
+		$title = $field['title'];
+
 		$nfs = $field['group'];
 		$field['required'] = '';
 
 		$value = $field['value'];
-		
+
 		$row_wrap = 0;
 
 		if ($nfs && $nfs != $fieldset) {
@@ -105,6 +108,10 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 		}
 
 		$prob_class = ($field['error'] ? ' class="err" ' : '');
+		$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+
+		/* Hack -- autoadjust enctype */
+		if ($input == 'file') $enc = ' enctype="multipart/form-data"';
 
 		switch ($input) {
 
@@ -113,7 +120,7 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 			break;
 			case 'select':
 				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$property.':</label>';
+				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
 				$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
 				if ($field['options']) foreach ($field['options'] as $option) {
 					$output .= '<option value="'.$option['value'].'"'.
@@ -125,7 +132,7 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 			break;
 			case 'radio':
 				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$property.':</label>';
+				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
 				if ($field['options']) {
 					#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
 				 	foreach ($field['options'] as $option) {
@@ -140,7 +147,7 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 			case 'checkbox':
 				$selected = ($value ? ' checked' : '');
 				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$property.':</label>';
+				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
 				$output .= '<input id="'.$property.'-field"'.$prob_class.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
 				$row_wrap = 1;
 			break;
@@ -150,20 +157,24 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 					$drop_handler = 'data-drop-handler="embed_document"';
 				}
 				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$property.':</label>';
-				$output .= '<textarea cols="80" rows="24" placeholder="'.$property.'" id="'.$property.'-field"'.$prob_class.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
+				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
+				$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$prob_class.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
 				$row_wrap = 1;
 			break; 
 			default:	/* text, */
 				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$property.':</label>';
-				$output .= '<input size="80" placeholder="'.$property.'" id="'.$property.'-field"'.$prob_class.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
+				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
+			if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value that can't be converted to string(".get_class($value).")");
+				$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$prob_class.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
 				$row_wrap = 1;
 			break;
 		}
 
 		if ($prob_class) {
 			$output .= '<span class="problem">'.$field['error'].'</span>'.PHP_EOL;
+		}
+		if ($hint_class) {
+			$output .= '<span class="hint">'.$field['hint'].'</span>'.PHP_EOL;
 		}
 		if ($row_wrap) {
 			$output .= '</li>'.PHP_EOL;		
@@ -176,19 +187,33 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 
 	$output .= '</form>';
 
-	return $output;
+	$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.'>'.PHP_EOL;
+	$output_begin .= $_method;
+
+	return $output_begin . $output;
 }
 
 function formField($property, $input, $value='', $error=FALSE) {
 		/* Format field */
 		$default = ($property == 'id' ? 'hidden' : ($property == 'body' ? 'textarea' : 'text')); 
 
+		$title = $property;
+		$tooltip = "";
+
 		$required = "";
 		$group = "";
-	
+
 		$attr = '';
 
 		if ($input) {
+			if (preg_match("#`(.+)`#", $input, $mc)) {
+				$title = $mc[1];
+				$input = str_replace($mc[0], "", $input);
+			}		
+			if (preg_match('#"(.+)"#', $input, $mc)) {
+				$tooltip = $mc[1];
+				$input = str_replace($mc[0], "", $input);
+			}
 			$hints = preg_split('# #', $input);
 			$input = '';
 			foreach($hints as $hint) {
@@ -214,6 +239,9 @@ function formField($property, $input, $value='', $error=FALSE) {
 			'attr' => $attr,
 			'required' => $required,
 			'group' => $group,
+
+			'title'=>$title,
+			'hint' =>$tooltip,
 
 			'error'=>$error,
 			'value'=>$value,
@@ -259,7 +287,7 @@ function formObject($object, $errors = NULL) {
 				echo "<pre>GOT OURSELVES a...";	print_r($input);	echo "</pre>";
 			}
 */
-			if ($input === '') continue; /* Ignore explicitly empty values */
+			if ($input === '' || $input === false) continue; /* Ignore explicitly empty values */
 
 			if (is_array($input))	/* the field is already formated */ 
 				$field = $input;
