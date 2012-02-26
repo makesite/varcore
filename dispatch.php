@@ -38,7 +38,7 @@ if (isset($_POST['_method']) && (in_array($_POST['_method'],array('PUT','DELETE'
 /* Aditionally, _GET() and _POST() functions provide convinient shortcuts for 
  * very popular REQUEST use-cases: */
 function _GET() { global $argv; return $argv + $_GET; }
-function _POST() { return _FORMED() ? $_POST + $_GET : array('raw'=>_RAW_POST()); }
+function _POST() { return _FORMED() ? $_POST + $_GET : $_POST + array('raw'=>_RAW_POST()); }
 function _PAYLOAD() { return (($_SERVER['REQUEST_METHOD'] == 'GET') ? $_GET : _POST()); }
 
 function _REST() { return preg_split('#/#',$_SERVER['NODE_URI']) + _PAYLOAD(); }
@@ -139,6 +139,13 @@ function _REQUEST() {	$fmt=_FORMAT(); return array(
 	'payload'=>_PAYLOAD(),
 ); }
 
+/* Return reversed dispatch */
+function _AGAIN($data2=null) {
+	$data1 = preg_split('#/#', get_return_to());
+	if ($data2) $data1 += $data2; 
+	return $data1;
+}
+
 function safe_name($name) {
 		$name = preg_replace('/[^a-zA-Z0-9]/', '', $name);
 		if (!$name) $name = "index";
@@ -155,7 +162,7 @@ function get_return_to() {
 /* DISPATCH */
 function dispatch($args, $fn='', $fna='', $cycle=array(FALSE), $dir='', $fnx='_') {
 	if (!is_array($args)) $args = preg_split('#/#',$args);
-	if (!$fna) $fna = $fn . '_';
+	if ($fna === null) $fna = $fn . '_';
 	if (!is_array($cycle)) $cycle = array(FALSE);
 	$next = safe_name(array_shift($args));
 	if ($dir) {
