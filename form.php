@@ -1,6 +1,6 @@
 <?php
 
-function formalize($object, $action=null, $method='POST', $errors=array(), $extra_html = array()) {
+function formalize($object, $action, $method, $errors, $extra_html = array()) {
 
 	if ($action === null) $action = 'edit'.strtolower(get_class($object));
 
@@ -43,11 +43,13 @@ function fillObject($object, $fill, &$errors = NULL) {
 			$func = $field['test'];
 			if (is_callable($func)) {
 				$err = $func($value);
+			} else if (is_callable($class, $func)) {
+				$err = $object->$func($value);
 			} else {
 				$err = preg_match($$field['test'], $value);
 			}
-			if ($err) {
-				$errors[$property] = "Test failed";
+			if ($err !== true) {
+				$errors[$property] = ($err === false ? "Test failed" : $err);
 				//continue;
 			}
 		}
@@ -55,7 +57,7 @@ function fillObject($object, $fill, &$errors = NULL) {
 		if ($field['required'] && !$value) {
 				$errors[$property] = "Required field";
 					//continue;
-		}			
+		}
 
 _debug_log($class.' -> '.$property.' = '.substr($value, 0, 100));
 		$object->$property = $value;
@@ -92,7 +94,8 @@ function formHtml($fields, $action, $method, $extra_html = array() ) {
 		$title = $field['title'];
 
 		$nfs = $field['group'];
-		$field['required'] = '';
+		/* HACK!!! DO NOT USE HTML5 required field */
+		if (defined('DEBUG')) $field['required'] = '';
 
 		$value = $field['value'];
 
@@ -302,6 +305,7 @@ function formObject($object, $errors = NULL) {
 
 			$testprop = $property.'_test';
 			if (isset($object->$testprop)) $field['test'] = $object->$testprop;
+			if (is_callable(array($object, $testprop))) $field['test'] = $testprop;
 
 			$filterprop = $property.'_filter';
 			if (isset($object->$filterprop)) $field['filter'] = $object->$filterprop;
