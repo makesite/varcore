@@ -160,7 +160,7 @@ function get_return_to() {
 		return $r;
 	}
 /* DISPATCH */
-function dispatch($args, $fn='', $fna='', $cycle=array(FALSE), $dir='', $fnx='_') {
+function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_') {
 	if (!is_array($args)) $args = preg_split('#/#',$args);
 	if ($fna === null) $fna = $fn . '_';
 	if (!is_array($cycle)) $cycle = array(FALSE);
