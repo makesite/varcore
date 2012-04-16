@@ -151,9 +151,10 @@ function safe_name($name) {
 		if (!$name) $name = "index";
 		return $name; 
 	}
-function get_return_to() {
+function get_return_to($default = null) {
+		if (!$default) $default = $_SERVER['HTTP_REFERER'];
 		$site_url = $_SERVER['SITE_URL'];
-		$r = (isset($_REQUEST['return_to']) ? $_REQUEST['return_to'] : $_SERVER['HTTP_REFERER']);
+		$r = (isset($_REQUEST['return_to']) ? $_REQUEST['return_to'] : $default);
 		if (substr($r, 0, strlen($site_url)) == $site_url) {
 			$r = substr($r, strlen($site_url));
 		}
