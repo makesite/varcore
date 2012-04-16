@@ -18,14 +18,16 @@ error_reporting(E_ALL);
 $__tmp_url = ($_SERVER['REQUEST_URI'] == $_SERVER['SCRIPT_NAME'] ?
 	substr($_SERVER['REQUEST_URI'], 0, strrpos($_SERVER['REQUEST_URI'], '/') + 1)
 	: $_SERVER['REQUEST_URI']);
+$__tmp_url = urldecode($__tmp_url);
 $_SERVER['SITE_URL'] = 
 	(isset($_SERVER['https']) || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://") . 
 	($_SERVER['HTTP_HOST'] ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']). 
 	($_SERVER['SITE_PATH'] = substr($__tmp_url, 0, strlen($__tmp_url)
-		- strlen($_SERVER['QUERY_STRING'])
+		- strlen(urldecode($_SERVER['QUERY_STRING']))
 		- (substr($__tmp_url, -1) == '?' ? 1 : 0)
 		));
 $__tmp_url = substr($_SERVER['REQUEST_URI'], strlen($_SERVER['SITE_PATH']));
+$__tmp_url = urldecode($__tmp_url);
 $__tmp_off = strrpos($__tmp_url, '?'); if ($__tmp_off === false) $__tmp_off = strpos($__tmp_url, '&'); 
 unset($_GET[(
 	$_SERVER['NODE_URI'] = ($__tmp_off === false ? $__tmp_url : substr($__tmp_url, 0, $__tmp_off))
