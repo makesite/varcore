@@ -15,7 +15,7 @@ function fillObject($object, $fill, &$errors = NULL) {
 	if ($errors == null) $errors = array();
 
 	$fields = formObject($object);
-
+//er("Fields are",$fields);
 	$class = get_class($object);
 
 	foreach ($fields as $field) {
@@ -28,8 +28,14 @@ function fillObject($object, $fill, &$errors = NULL) {
 		$filter = $property.'_filter';
 		$test = $property.'_test';
 
+		if (strpos($input, 'password') !== FALSE && !$value) {
+			_debug_log(" Ignoring empty field - $property");
+			continue;
+		}
+//er("Doing field", $field);
 		if (isset($field['filter'])) {
 			$func = $field['filter'];
+			//er("Running filter ", $func, "on value", $value);
 			if (is_callable($func)) {
 				$value = $func($value, $property, $object);
 			} else if (is_callable($class, $func)) {
@@ -42,11 +48,11 @@ function fillObject($object, $fill, &$errors = NULL) {
 		if (isset($field['test'])) {
 			$func = $field['test'];
 			if (is_callable($func)) {
-				$err = $func($value);
+				$err = $func($value, $property, $errors);
 			} else if (is_callable($class, $func)) {
-				$err = $object->$func($value);
+				$err = $object->$func($value, $property, $errors);
 			} else {
-				$err = preg_match($$field['test'], $value);
+				$err = preg_match($field['test'], $value);
 			}
 			if ($err !== true) {
 				$errors[$property] = ($err === false ? "Test failed" : $err);
@@ -59,141 +65,222 @@ function fillObject($object, $fill, &$errors = NULL) {
 					//continue;
 		}
 
-_debug_log($class.' -> '.$property.' = '.substr($value, 0, 100));
+_debug_log($class.' -> '.$property.' = '.str_replace(array("\r","\n"),'\n',substr(print_r($value,1), 0, 100)));
 		$object->$property = $value;
 	}
 
 	return sizeof($errors);
 }
 
-function formHtml($fields, $action, $method, $extra_html = array() ) {
+class WForm {
 
-	$output = '';
-	$_method = '';
-	$enc = '';
+	public $action = null;
+	public $method = 'POST';
+	public $fieldsets = array();
 
-	$fieldset = 'main';
+	public $fields = array();
 
-	if (substr($method, 0,1) == '@') {
-		$method = substr($method, 1);
-		$enc = ' enctype="multipart/form-data"';
-	}
-	if (substr($method, 0,1) == '_') {
-		$_method = '<input type="hidden" name="_method" value="'.substr($method, 1).'" />'.PHP_EOL;
-		$method = 'POST';
-	}
+	public $form_class = '';
+	public $label_class = '';
+	public $hint_class = '';
+	public $row_error_class = '';
+	public $label_error_class = '';
+	public $input_error_class = '';
+	
+	public $input_header = '';
+	public $input_footer = '';
 
-	/* Note: <form ...> is prepended at the end */
+	public $row_header = '<li>';
+	public $row_footer = '</li>';
 
-	$output .= '<fieldset title="'.$fieldset.'">'.PHP_EOL;
-	foreach ($fields as $field) {
+	public $hint_header = '<span class="hint">';
+	public $hint_footer = '</span>';
 
-		$property = $field['name'];
-		$input = $field['type'];
+	public $alert_header = '<span class="problem">';
+	public $alert_footer = '</span>';
 
-		$title = $field['title'];
+	public function __construct($fields, $action, $method = 'POST', $extra_html = array()) {
 
-		$nfs = $field['group'];
-		/* HACK!!! DO NOT USE HTML5 required field */
-		if (defined('DEBUG')) $field['required'] = '';
+		$this->action = $action;
+		$this->method = $method;
+		
+		$this->fields = $fields;
 
-		$value = $field['value'];
-
-		$row_wrap = 0;
-
-		if ($nfs && $nfs != $fieldset) {
-			$output .= '</fieldset>'.PHP_EOL;
-			if (isset($extra_html[$fieldset])) 
-			$output .= $extra_html[$fieldset].PHP_EOL;
-			$extra_html[$fieldset] = '';
-			$output .= '<fieldset title="'.$nfs.'">';
-			$fieldset = $nfs;
+		foreach ($extra_html as $group_name => $group_html) {
+			$this->fieldsets[$group_name]['html'] = $group_html; 		
 		}
 
-		$prob_class = ($field['error'] ? ' class="err" ' : '');
-		$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+	}
 
-		/* Hack -- autoadjust enctype */
-		if ($input == 'file') $enc = ' enctype="multipart/form-data"';
+	public function render() {
+	
+		$action = $this->action;
+		$method = $this->method;
+		$fields = $this->fields;
+		$extra_html = array();//;
+		foreach ($this->fieldsets as $group_name => $fieldset) {
+			$extra_html[$group_name] = $fieldset['html']; 		
+		}
 
-		switch ($input) {
+		$output = '';
+		$_method = '';
+		$enc = '';
+	
+		$fieldset = 'main';
+	
+		if (substr($method, 0,1) == '@') {
+			$method = substr($method, 1);
+			$enc = ' enctype="multipart/form-data"';
+		}
+		if (substr($method, 0,1) == '_') {
+			$_method = '<input type="hidden" name="_method" value="'.substr($method, 1).'" />'.PHP_EOL;
+			$method = 'POST';
+		}
+	
+		/* Note: <form ...> is prepended at the end */
+	
+		$output .= '<fieldset title="'.$fieldset.'">'.PHP_EOL;
+		foreach ($fields as $field) {
+	
+			$property = $field['name'];
+			$input = $field['type'];
+	
+			$title = $field['title'];
+	
+			$nfs = $field['group'];
+			/* HACK!!! DO NOT USE HTML5 required field */
+			if (defined('DEBUG')) $field['required'] = '';
+	
+			$value = $field['value'];
 
-			case 'hidden':
-				$output .= "<input type='hidden' name='".$property."' value='".$value."'/>\n";
-			break;
-			case 'select':
-				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
-				$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
-				if ($field['options']) foreach ($field['options'] as $option) {
-					$output .= '<option value="'.$option['value'].'"'.
-						($option['selected'] ? ' selected' : '').
-						'>'.$option['name'].'</option>';
-				}
-				$output .= '</select>'.PHP_EOL;
+			$row_wrap = 0;
+
+			if ($nfs && $nfs != $fieldset) {
+				$output .= '</fieldset>'.PHP_EOL;
+				if (isset($extra_html[$fieldset])) 
+				$output .= $extra_html[$fieldset].PHP_EOL;
+				$extra_html[$fieldset] = '';
+				$output .= '<fieldset title="'.$nfs.'">';
+				$fieldset = $nfs;
+			}
+
+			$label_class = $this->label_class;
+			if ($field['error']) $label_class .= ' '.$this->label_error_class;
+			if ($field['hint']) $label_class .= ' '.$this->hint_class;
+			$label_class = trim($label_class);
+
+			$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
+
+			$input_class_exp = ($field['error'] && $this->input_error_class ? ' class="'.$this->input_error_class.'" ' : '');
+			//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+
+			/* Hack -- autoadjust enctype */
+			if ($input == 'file') $enc = ' enctype="multipart/form-data"';
+
+			if ($input != 'hidden') {
+				$output .= sprintf($this->row_header, ($field['error'] ? $this->row_error_class : '') );
+				$output .= '<label for="'.$property.'-field"'.$label_class_exp.'>'.$title.':</label>';
+				$output .= $this->input_header;
 				$row_wrap = 1;
-			break;
-			case 'radio':
-				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
-				if ($field['options']) {
-					#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
-				 	foreach ($field['options'] as $option) {
-						$output .= '<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
+			}
+			switch ($input) {
+				case 'hidden':
+					$output .= "<input type='hidden' name='".$property."' value='".$value."'/>".PHP_EOL;
+				break;
+				case 'checklist':
+					$output .= '<div class="checklist">';
+					$marked = array();
+					foreach ($value as $val) {
+						$selected = ($value ? ' checked' : '');
+						$output .= $val->name;
+						$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$val->name.']">'.PHP_EOL;
+						$marked[] = $val->name;
+					}
+					foreach ($field['options'] as $option) {
+						if (in_array($option['name'], $marked)) continue;
+						$selected = '';
+						$output .= $option['name'];
+						$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$option['name'].']">'.PHP_EOL;
+					}
+					$output .= '</div>';
+					$row_wrap = 1;
+				break;
+				case 'select':
+					$output .= '<select id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'">'.PHP_EOL;
+					if ($field['options']) foreach ($field['options'] as $option) {
+						$output .= '<option value="'.$option['value'].'"'.
 							($option['selected'] ? ' selected' : '').
 							'>'.$option['name'].'</option>';
 					}
-				}
-				#$output .= '</select>'.PHP_EOL;
-				$row_wrap = 1;
-			break;
-			case 'checkbox':
-				$selected = ($value ? ' checked' : '');
-				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
-				$output .= '<input id="'.$property.'-field"'.$prob_class.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
-				$row_wrap = 1;
-			break;
-			case 'textarea':
-				$drop_handler = '';
-				if ($property == 'body') {
-					$drop_handler = 'data-drop-handler="embed_document"';
-				}
-				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
-				$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$prob_class.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
-				$row_wrap = 1;
-			break; 
-			default:	/* text, */
-				$output .= '<li>';
-				$output .= '<label for="'.$property.'-field"'.$prob_class.'>'.$title.':</label>';
-			if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value that can't be converted to string(".get_class($value).")");
-				$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$prob_class.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
-				$row_wrap = 1;
-			break;
+					$output .= '</select>'.PHP_EOL;
+					$row_wrap = 1;
+				break;
+				case 'radio':
+					if ($field['options']) {
+						#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
+					 	foreach ($field['options'] as $option) {
+							$output .= '<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
+								($option['selected'] ? ' checked' : '').
+								'>'.$option['name'].'</option>';
+						}
+					}
+					#$output .= '</select>'.PHP_EOL;
+					$row_wrap = 1;
+				break;
+				case 'checkbox':
+					$selected = ($value ? ' checked' : '');
+					$output .= '<input id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
+					$row_wrap = 1;
+				break;
+				case 'textarea':
+					$drop_handler = '';
+					if ($property == 'body') {
+						$drop_handler = 'data-drop-handler="embed_document"';
+					}
+					$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
+					$row_wrap = 1;
+				break; 
+				default:	/* text, */
+					if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value (".get_class($value).") that can't be converted to string");
+					$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
+				break;
+			}
+	
+			if ($field['error']) {
+				$output .= $this->alert_header.$field['error'].$this->alert_footer.PHP_EOL;
+			}
+			if ($field['hint']) {
+				$output .= $this->hint_header.$field['hint'].$this->hint_footer.PHP_EOL;
+			}
+			if ($row_wrap) {
+				$output .= $this->input_footer.PHP_EOL;
+				$output .= $this->row_footer.PHP_EOL;
+			}
 		}
+		$output .= '</fieldset>'.PHP_EOL;
 
-		if ($prob_class) {
-			$output .= '<span class="problem">'.$field['error'].'</span>'.PHP_EOL;
-		}
-		if ($hint_class) {
-			$output .= '<span class="hint">'.$field['hint'].'</span>'.PHP_EOL;
-		}
-		if ($row_wrap) {
-			$output .= '</li>'.PHP_EOL;		
-		}
+		if (isset($extra_html[$fieldset])) 
+		$output .= $extra_html[$fieldset].PHP_EOL;
+
+		$output .= '</form>';
+		
+		$form_class = ($this->form_class ? ' class="'.$this->form_class.'"' : '');
+
+		$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_class.'>'.PHP_EOL;
+		$output_begin .= $_method;
+
+		return $output_begin . $output;
+
 	}
-	$output .= '</fieldset>'.PHP_EOL;
 
-	if (isset($extra_html[$fieldset])) 
-	$output .= $extra_html[$fieldset].PHP_EOL;
+}
 
-	$output .= '</form>';
+function formHtml($fields, $action, $method, $extra_html = array(), $opts = array() ) {
 
-	$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.'>'.PHP_EOL;
-	$output_begin .= $_method;
+	$form = new WForm($fields, $action, $method, $extra_html);
+	foreach ($opts as $key=>$val) $form->$key = $val;
+	return $form->render();
 
-	return $output_begin . $output;
 }
 
 function formField($property, $input, $value='', $error=FALSE) {
@@ -223,9 +310,12 @@ function formField($property, $input, $value='', $error=FALSE) {
 				if ($hint == 'required')
 					$required = $hint;
 				else
+				if ($hint == 'multiple')
+					$attr .= ' multiple ';
+				else
 				if (strpos($hint, '=') !== FALSE)
-					$attr .= $hint;
-				else 
+					$attr .= ' ' . $hint . ' ';
+				else
 				if (substr($hint, 0, 1) == '@')
 					$group = substr($hint, 1);
 				else
@@ -239,7 +329,7 @@ function formField($property, $input, $value='', $error=FALSE) {
 		return array(
 			'name' => $property,
 			'type' => $input,
-			'attr' => $attr,
+			'attr' => trim($attr),
 			'required' => $required,
 			'group' => $group,
 
@@ -258,7 +348,7 @@ function formObject($object, $errors = NULL) {
 		if (!is_object($object)) throw new Exception("Argument 1 not an Object");
 
 		$fields = array();
-	
+
 		$class = get_class($object);
 
 		$desc = array();
@@ -269,7 +359,7 @@ function formObject($object, $errors = NULL) {
 		foreach ($object as $property=>$value) {
 
 			$input = null;
-			
+
 			if (strtoupper($property) == $property) continue;// Ignore upper-case properties
 			if (preg_match("#_peers$#", $property)) continue;
 
@@ -309,6 +399,7 @@ function formObject($object, $errors = NULL) {
 
 			$filterprop = $property.'_filter';
 			if (isset($object->$filterprop)) $field['filter'] = $object->$filterprop;
+			if (is_callable(array($object, $filterprop))) $field['filter'] = $filterprop;			
 
 			$field['value'] = $value;
 			$field['error'] = isset($errors[$property]) ? $errors[$property] : FALSE;
