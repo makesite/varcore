@@ -9,6 +9,8 @@ error_reporting(E_ALL);
  *  $_SERVER['NODE_URI'] will contain approximate resource identifier.
  *  $_SERVER['SITE_PATH'] will contain apoximate controller path.
  *  $_SERVER['SITE_URL'] will contain approximate BASE_URL.
+ *  $_POST[] values will be urldecoded if $_SERVER['CONTENT_TYPE'] is 
+ *     'application/x-www-form-urlencoded'
  */
 /*
  HTTP ACCEPT Header
@@ -18,7 +20,6 @@ error_reporting(E_ALL);
 $__tmp_url = ($_SERVER['REQUEST_URI'] == $_SERVER['SCRIPT_NAME'] ?
 	substr($_SERVER['REQUEST_URI'], 0, strrpos($_SERVER['REQUEST_URI'], '/') + 1)
 	: $_SERVER['REQUEST_URI']);
-$__tmp_url = urldecode($__tmp_url);
 $_SERVER['SITE_URL'] = 
 	(isset($_SERVER['https']) || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://") . 
 	($_SERVER['HTTP_HOST'] ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']). 
@@ -34,8 +35,13 @@ unset($_GET[(
 	)], $__tmp_off, $__tmp_url);
 if (!isset($argc)) { $argc = count(($argv = explode("/", $_SERVER['NODE_URI']))); $_SERVER['argc'] = 0; }
 if (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) $_SERVER['REQUEST_METHOD'] = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']; 	
-if (isset($_POST['_method']) && (in_array($_POST['_method'],array('PUT','DELETE','POST')))) {
-	$_SERVER['REQUEST_METHOD'] = $_POST['_method'];	unset($_POST['_method']);	}
+if (isset($_POST['_method']) && (in_array(strtoupper($_POST['_method']),array('PUT','DELETE','POST','GET','HEAD','OPTIONS')))) {
+	$_SERVER['REQUEST_METHOD'] = strtoupper($_POST['_method']);	unset($_POST['_method']);	}
+if (isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/x-www-form-urlencoded') {
+	foreach ($_POST as $key => $val) {
+		$_POST[$key] = urldecode($val);
+	}
+}
 
 /* Aditionally, _GET() and _POST() functions provide convinient shortcuts for 
  * very popular REQUEST use-cases: */
@@ -44,6 +50,11 @@ function _POST() { return _FORMED() ? $_POST + $_GET : $_POST + array('raw'=>_RA
 function _PAYLOAD() { return (($_SERVER['REQUEST_METHOD'] == 'GET') ? $_GET : _POST()); }
 
 function _REST() { return preg_split('#/#',$_SERVER['NODE_URI']) + _PAYLOAD(); }
+
+function _IP() { /* Get request IP-address */
+	return isset($_SERVER['HTTP_X_FORWARDED_FOR']) ?
+		$_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']; 
+}
 
 /* If you want some quick and dirty CLI functionality, call this function: */ 
 function _CLI() { global $argc, $argv; if (!empty($_SERVER['argc'])) {
@@ -77,12 +88,36 @@ function _FORMAT($preferred=array('html'), $formats = array(
 	        if (isset($formats[$type])) $_SERVER['REQUEST_FORMAT'][$formats[$type]] = $q;
 	    }
 	}
+	if (is_string($preferred)) {
+		return isset($_SERVER['REQUEST_FORMAT'][$preferred]);
+	}
     $sorted_types = array();
     foreach ($_SERVER['REQUEST_FORMAT'] as $type=>$q) 
         if (in_array($type, $preferred)) 
         	$sorted_types[array_search($type, $preferred)] = $type;
      asort($sorted_types);
 	return $sorted_types;
+}
+/* If you want quick and dirty LANGUAGE-ACCEPT, call this function: */
+function _LANGUAGE($preferred=array('en')) {
+	if (!isset($_SERVER['REQUEST_LANGUAGE'])) {
+		$_SERVER['REQUEST_LANGUAGE'] = array();
+		$languages = preg_split('/,\s*/', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
+		er($languages);		
+		//if (isset($_SERVER['CONTENT_TYPE'])) $accept_types[] = $_SERVER['CONTENT_TYPE'];
+		foreach ($languages as $type) {
+			list($type, $q) = (strpos($type, 'q=') ? 
+				preg_split('/;\s*q=/', $type) : array($type, 1));
+//			if (isset($known[$type])) 
+			$_SERVER['REQUEST_LANGUAGE'][$type] = $q;
+		}
+	}
+	$sorted = array();
+	foreach ($_SERVER['REQUEST_LANGUAGE'] as $type=>$q) 
+		if (in_array($type, $preferred)) 
+			$sorted[array_search($type, $preferred)] = $type;
+	asort($sorted);
+	return $sorted;
 }
 /* If you want quick and dirty XML-RPC functionality, call this function: */
 function _XMLRPC($data=null) {
@@ -154,7 +189,7 @@ function safe_name($name) {
 		return $name; 
 	}
 function get_return_to($default = null) {
-		if (!$default) $default = $_SERVER['HTTP_REFERER'];
+		if (!$default && isset($_SERVER['HTTP_REFERER'])) $default = $_SERVER['HTTP_REFERER'];
 		$site_url = $_SERVER['SITE_URL'];
 		$r = (isset($_REQUEST['return_to']) ? $_REQUEST['return_to'] : $default);
 		if (substr($r, 0, strlen($site_url)) == $site_url) {
@@ -163,7 +198,7 @@ function get_return_to($default = null) {
 		return $r;
 	}
 /* DISPATCH */
-function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_') {
+function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_', $pl = false) {
 	if (!is_array($args)) $args = preg_split('#/#',$args);
 	if ($fna === null) $fna = $fn . '_';
 	if (!is_array($cycle)) $cycle = array(FALSE);
@@ -187,11 +222,13 @@ function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='
 		if ($fn && function_exists($fn_name))
 		{
 			_debug_log(' Calling function "'.$fn_name. '($,$,$)"');
+			if ($pl) $args = array($args, $pl);
 			return call_user_func_array($fn_name, $args);
 		}
 		else if ($fna && function_exists($fna_name))
 		{
 			_debug_log(' Calling function "'.$fna_name. '(@)"');
+			if ($pl) return call_user_func_array($fna_name, array($args, $pl));
 			return call_user_func($fna_name, $args);
 		}
 		_debug_log(' Not found.');
