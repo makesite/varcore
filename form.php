@@ -65,7 +65,7 @@ function fillObject($object, $fill, &$errors = NULL) {
 					//continue;
 		}
 
-_debug_log($class.' -> '.$property.' = '.str_replace(array("\r","\n"),'\n',substr(print_r($value,1), 0, 100)));
+		_debug_log($class.' -> '.$property.' = '.str_replace(array("\r","\n"),'\n',substr(print_r($value,1), 0, 100)));
 		$object->$property = $value;
 	}
 
