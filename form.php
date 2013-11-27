@@ -106,28 +106,59 @@ class WForm {
 		
 		$this->fields = $fields;
 
+		/* Each fieldset has some extra html to it */
+		foreach ($fields as $field) {
+			$this->fieldsets[$field['group']] = array(
+				'html-preIn'=>'',
+				'html-preOut'=>'',
+				'html-postIn'=>'',
+				'html-postOut'=>'',
+			);
+		}
+
+		/* By applying a '<' or '>' symbol to end or beginning
+		 * of a form, one can direct where user-passed html goes.
+		 *
+		 * >main -- before, outside
+		 * <main -- before, inside
+		 * main< -- after, inside
+		 * main> -- after, outside
+		 */
 		foreach ($extra_html as $group_name => $group_html) {
-			$this->fieldsets[$group_name]['html'] = $group_html; 		
+			$mod = '-postOut';
+			if (substr($group_name, 0, 1) == '>') {
+				$mod = '-postOut';
+				$group_name = substr($group_name, 1);
+			}
+			else if (substr($group_name, 0, 1) == '<') {
+				$mod = '-preIn';
+				$group_name = substr($group_name, 1);
+			}
+			if (substr($group_name, -1) == '<') {
+				$mod = '-preOut';
+				$group_name = substr($group_name,0, strlen($group_name)-1);
+			}
+			if (substr($group_name, -1) == '>') {
+				$mod = '-postIn';
+				$group_name = substr($group_name,0, strlen($group_name)-1);
+			}
+			$this->fieldsets[$group_name]['html'.$mod] = $group_html;
 		}
 
 	}
 
-	public function render() {
-	
+	public function render($needed_fieldsets = null) {
+
+		if (!$needed_fieldsets) $needed_fieldsets = array_keys($this->fieldsets);
+
 		$action = $this->action;
 		$method = $this->method;
 		$fields = $this->fields;
-		$extra_html = array();//;
-		foreach ($this->fieldsets as $group_name => $fieldset) {
-			$extra_html[$group_name] = $fieldset['html']; 		
-		}
 
 		$output = '';
 		$_method = '';
 		$enc = '';
-	
-		$fieldset = 'main';
-	
+
 		if (substr($method, 0,1) == '@') {
 			$method = substr($method, 1);
 			$enc = ' enctype="multipart/form-data"';
@@ -136,143 +167,160 @@ class WForm {
 			$_method = '<input type="hidden" name="_method" value="'.substr($method, 1).'" />'.PHP_EOL;
 			$method = 'POST';
 		}
-	
+		if (substr($method, 0,2) == 'X_') {
+			$_method = '<input type="hidden" name="X_METHOD_OVERRIDE" value="'.substr($method, 2).'" />'.PHP_EOL;
+			$method = 'POST';
+		}
 		/* Note: <form ...> is prepended at the end */
-	
-		$output .= '<fieldset title="'.$fieldset.'">'.PHP_EOL;
-		foreach ($fields as $field) {
-	
-			$property = $field['name'];
-			$input = $field['type'];
-	
-			$title = $field['title'];
-	
-			$nfs = $field['group'];
-			/* HACK!!! DO NOT USE HTML5 required field */
-			if (defined('DEBUG')) $field['required'] = '';
-	
-			$value = $field['value'];
 
-			$row_wrap = 0;
+		foreach ($needed_fieldsets as $fieldset) {
 
-			if ($nfs && $nfs != $fieldset) {
-				$output .= '</fieldset>'.PHP_EOL;
-				if (isset($extra_html[$fieldset])) 
-				$output .= $extra_html[$fieldset].PHP_EOL;
-				$extra_html[$fieldset] = '';
-				$output .= '<fieldset title="'.$nfs.'">';
-				$fieldset = $nfs;
+			if (!isset($this->fieldsets[$fieldset])) {
+				_debug_log("Ignoring unknown fieldset `".$fieldset."`");
+				continue;
 			}
 
-			$label_class = $this->label_class;
-			if ($field['error']) $label_class .= ' '.$this->label_error_class;
-			if ($field['hint']) $label_class .= ' '.$this->hint_class;
-			$label_class = trim($label_class);
+			if ($this->fieldsets[$fieldset]['html-preOut'])
+				$output .= $this->fieldsets[$fieldset]['html-preOut'] . PHP_EOL;
 
-			$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
+			$output .= '<fieldset name="'.$fieldset.'">'.PHP_EOL;
 
-			$input_class_exp = ($field['error'] && $this->input_error_class ? ' class="'.$this->input_error_class.'" ' : '');
-			//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+			if ($this->fieldsets[$fieldset]['html-preIn'])
+				$output .= $this->fieldsets[$fieldset]['html-preIn'] . PHP_EOL;
 
-			/* Hack -- autoadjust enctype */
-			if ($input == 'file') $enc = ' enctype="multipart/form-data"';
+			foreach ($fields as $field) {
 
-			if ($input != 'hidden') {
-				$output .= sprintf($this->row_header, ($field['error'] ? $this->row_error_class : '') );
-				$output .= '<label for="'.$property.'-field"'.$label_class_exp.'>'.$title.':</label>';
-				$output .= $this->input_header;
-				$row_wrap = 1;
-			}
-			switch ($input) {
-				case 'hidden':
-					$output .= "<input type='hidden' name='".$property."' value='".$value."'/>".PHP_EOL;
-				break;
-				case 'checklist':
-					$output .= '<div class="checklist">';
-					$marked = array();
-					foreach ($value as $val) {
-						$selected = ($value ? ' checked' : '');
-						$output .= $val->name;
-						$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$val->name.']">'.PHP_EOL;
-						$marked[] = $val->name;
-					}
-					foreach ($field['options'] as $option) {
-						if (in_array($option['name'], $marked)) continue;
-						$selected = '';
-						$output .= $option['name'];
-						$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$option['name'].']">'.PHP_EOL;
-					}
-					$output .= '</div>';
+				if ($field['group'] != $fieldset) continue;
+
+				$property = $field['name'];
+				$input = $field['type'];
+				$title = $field['title'];
+
+				/* HACK!!! DO NOT USE HTML5 required field */
+				if (defined('DEBUG')) $field['required'] = '';
+		
+				$value = $field['value'];
+
+				$row_wrap = 0;
+
+
+				$label_class = $this->label_class;
+				if ($field['error']) $label_class .= ' '.$this->label_error_class;
+				if ($field['hint']) $label_class .= ' '.$this->hint_class;
+				$label_class = trim($label_class);
+
+				$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
+
+				$input_class_exp = ($field['error'] && $this->input_error_class ? ' class="'.$this->input_error_class.'" ' : '');
+				//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+
+				/* Hack -- autoadjust enctype */
+				if ($input == 'file') $enc = ' enctype="multipart/form-data"';
+
+				if ($input != 'hidden') {
+					$output .= sprintf($this->row_header, ($field['error'] ? $this->row_error_class : '') );
+					$output .= '<label for="'.$property.'-field"'.$label_class_exp.'>'.$title.':</label>';
+					$output .= $this->input_header;
 					$row_wrap = 1;
-				break;
-				case 'select':
-					$output .= '<select id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'">'.PHP_EOL;
-					if ($field['options']) foreach ($field['options'] as $option) {
-						$output .= '<option value="'.$option['value'].'"'.
-							($option['selected'] ? ' selected' : '').
-							'>'.$option['name'].'</option>';
-					}
-					$output .= '</select>'.PHP_EOL;
-					$row_wrap = 1;
-				break;
-				case 'radio':
-					if ($field['options']) {
-						#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
-					 	foreach ($field['options'] as $option) {
-							$output .= '<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
-								($option['selected'] ? ' checked' : '').
+				}
+				switch ($input) {
+					case 'hidden':
+						$output .= "<input type='hidden' name='".$property."' value='".$value."'/>".PHP_EOL;
+					break;
+					case 'checklist':
+						$output .= '<div class="checklist">';
+						$marked = array();
+						foreach ($value as $val) {
+							$selected = ($value ? ' checked' : '');
+							$output .= $val->name;
+							$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$val->name.']">'.PHP_EOL;
+							$marked[] = $val->name;
+						}
+						foreach ($field['options'] as $option) {
+							if (in_array($option['name'], $marked)) continue;
+							$selected = '';
+							$output .= $option['name'];
+							$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$option['name'].']">'.PHP_EOL;
+						}
+						$output .= '</div>';
+						$row_wrap = 1;
+					break;
+					case 'select':
+						$output .= '<select id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'">'.PHP_EOL;
+						if ($field['options']) foreach ($field['options'] as $option) {
+							$output .= '<option value="'.$option['value'].'"'.
+								($option['selected'] ? ' selected' : '').
 								'>'.$option['name'].'</option>';
 						}
-					}
-					#$output .= '</select>'.PHP_EOL;
-					$row_wrap = 1;
-				break;
-				case 'checkbox':
-					$selected = ($value ? ' checked' : '');
-					$output .= '<input id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
-					$row_wrap = 1;
-				break;
-				case 'textarea':
-					$drop_handler = '';
-					if ($property == 'body') {
-						$drop_handler = 'data-drop-handler="embed_document"';
-					}
-					$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
-					$row_wrap = 1;
-				break; 
-				default:	/* text, */
-					if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value (".get_class($value).") that can't be converted to string");
-					$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
-				break;
-			}
-	
-			if ($field['error']) {
-				$output .= $this->alert_header.$field['error'].$this->alert_footer.PHP_EOL;
-			}
-			if ($field['hint']) {
-				$output .= $this->hint_header.$field['hint'].$this->hint_footer.PHP_EOL;
-			}
-			if ($row_wrap) {
-				$output .= $this->input_footer.PHP_EOL;
-				$output .= $this->row_footer.PHP_EOL;
-			}
-		}
-		$output .= '</fieldset>'.PHP_EOL;
+						$output .= '</select>'.PHP_EOL;
+						$row_wrap = 1;
+					break;
+					case 'radio':
+						if ($field['options']) {
+							#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
+							foreach ($field['options'] as $i=>$option) {
+								$output .= '<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
+									'id="'.$property.'-field'.$i.'"'.
+									($option['selected'] ? ' checked' : '').
+									'>'.
+									'<label for="'.$property.'-field'.$i.'">'.
+									$option['name'].
+									'</label>';
+							}
+						}
+						#$output .= '</select>'.PHP_EOL;
+						$row_wrap = 1;
+					break;
+					case 'checkbox':
+						$selected = ($value ? ' checked' : '');
+						$output .= '<input id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
+						$row_wrap = 1;
+					break;
+					case 'textarea':
+						$drop_handler = '';
+						if ($property == 'body') {
+							$drop_handler = 'data-drop-handler="embed_document"';
+						}
+						$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
+						$row_wrap = 1;
+					break;
+					default:	/* text, */
+						if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value (".get_class($value).") that can't be converted to string");
+						$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
+					break;
+				}
 
-		if (isset($extra_html[$fieldset])) 
-		$output .= $extra_html[$fieldset].PHP_EOL;
+				if ($field['error']) {
+					$output .= $this->alert_header.$field['error'].$this->alert_footer.PHP_EOL;
+				}
+				if ($field['hint']) {
+					$output .= $this->hint_header.$field['hint'].$this->hint_footer.PHP_EOL;
+				}
+				if ($row_wrap) {
+					$output .= $this->input_footer.PHP_EOL;
+					$output .= $this->row_footer.PHP_EOL;
+				}
+			}
+
+			if ($this->fieldsets[$fieldset]['html-postIn'])
+				$output .= $this->fieldsets[$fieldset]['html-postIn'] . PHP_EOL;
+
+			$output .= '</fieldset>'.PHP_EOL;
+
+			if ($this->fieldsets[$fieldset]['html-postOut'])
+				$output .= $this->fieldsets[$fieldset]['html-postOut'] . PHP_EOL;
+
+		}
 
 		$output .= '</form>';
-		
+
 		$form_class = ($this->form_class ? ' class="'.$this->form_class.'"' : '');
 
 		$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_class.'>'.PHP_EOL;
 		$output_begin .= $_method;
 
 		return $output_begin . $output;
-
 	}
-
 }
 
 function formHtml($fields, $action, $method, $extra_html = array(), $opts = array() ) {
@@ -285,13 +333,14 @@ function formHtml($fields, $action, $method, $extra_html = array(), $opts = arra
 
 function formField($property, $input, $value='', $error=FALSE) {
 		/* Format field */
-		$default = ($property == 'id' ? 'hidden' : ($property == 'body' ? 'textarea' : 'text')); 
+		$large_fields = array('body', 'text', 'description');
+		$default = ($property == 'id' ? 'hidden' : (in_array($property,$large_fields) ? 'textarea' : 'text')); 
 
 		$title = $property;
 		$tooltip = "";
 
 		$required = "";
-		$group = "";
+		$group = "main";
 
 		$attr = '';
 
