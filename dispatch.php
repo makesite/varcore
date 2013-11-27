@@ -20,6 +20,7 @@ error_reporting(E_ALL);
 $__tmp_url = ($_SERVER['REQUEST_URI'] == $_SERVER['SCRIPT_NAME'] ?
 	substr($_SERVER['REQUEST_URI'], 0, strrpos($_SERVER['REQUEST_URI'], '/') + 1)
 	: $_SERVER['REQUEST_URI']);
+$__tmp_url = urldecode($__tmp_url);
 $_SERVER['SITE_URL'] = 
 	(isset($_SERVER['https']) || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://") . 
 	($_SERVER['HTTP_HOST'] ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']). 
@@ -39,7 +40,8 @@ if (isset($_POST['_method']) && (in_array(strtoupper($_POST['_method']),array('P
 	$_SERVER['REQUEST_METHOD'] = strtoupper($_POST['_method']);	unset($_POST['_method']);	}
 if (isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/x-www-form-urlencoded') {
 	foreach ($_POST as $key => $val) {
-		$_POST[$key] = urldecode($val);
+		if (is_string($val))
+			$_POST[$key] = urldecode($val);
 	}
 }
 
