@@ -4,19 +4,14 @@ error_reporting(E_ALL);
  * As soon as you include this file, your (super)global namespace gets polluted in 
  * the following way:
  * 	$_SERVER['REQUEST_METHOD'] will contain over-rides from $_POST["_method"] and 
- * 		$_SERVER["HTTP_X_HTTP_METHOD_OVERRIDE"].
- *	$_POST['_method'] will be unset() if present!
+ *    $_SERVER["HTTP_X_HTTP_METHOD_OVERRIDE"].
+ *  $_POST['_method'] will be unset() if present!
  *  $_SERVER['NODE_URI'] will contain approximate resource identifier.
- *  $_SERVER['SITE_PATH'] will contain apoximate controller path.
+ *  $_SERVER['SITE_PATH'] will contain approximate controller path.
  *  $_SERVER['SITE_URL'] will contain approximate BASE_URL.
  *  $_POST[] values will be urldecoded if $_SERVER['CONTENT_TYPE'] is 
  *     'application/x-www-form-urlencoded'
  */
-/*
- HTTP ACCEPT Header
-• &format=json
-• /api/xml/friends
-*/
 $__tmp_url = ($_SERVER['REQUEST_URI'] == $_SERVER['SCRIPT_NAME'] ?
 	substr($_SERVER['REQUEST_URI'], 0, strrpos($_SERVER['REQUEST_URI'], '/') + 1)
 	: $_SERVER['REQUEST_URI']);
@@ -82,22 +77,22 @@ function _FORMAT($preferred=array('html'), $formats = array(
 )) {
 	if (!isset($_SERVER['REQUEST_FORMAT'])) {
 		$_SERVER['REQUEST_FORMAT'] = array();
-	    $accept_types = preg_split('/,\s*/', $_SERVER['HTTP_ACCEPT']);
-	    if (isset($_SERVER['CONTENT_TYPE'])) $accept_types[] = $_SERVER['CONTENT_TYPE'];
-	    foreach ($accept_types as $type) {
-	        list($type, $q) = (strpos($type, 'q=') ? 
-	        	preg_split('/;\s*q=/', $type) : array($type, 1));
-	        if (isset($formats[$type])) $_SERVER['REQUEST_FORMAT'][$formats[$type]] = $q;
-	    }
+		$accept_types = preg_split('/,\s*/', $_SERVER['HTTP_ACCEPT']);
+		if (isset($_SERVER['CONTENT_TYPE'])) $accept_types[] = $_SERVER['CONTENT_TYPE'];
+		foreach ($accept_types as $type) {
+			list($type, $q) = (strpos($type, 'q=') ? 
+				preg_split('/;\s*q=/', $type) : array($type, 1));
+			if (isset($formats[$type])) $_SERVER['REQUEST_FORMAT'][$formats[$type]] = $q;
+		}
 	}
 	if (is_string($preferred)) {
 		return isset($_SERVER['REQUEST_FORMAT'][$preferred]);
 	}
-    $sorted_types = array();
-    foreach ($_SERVER['REQUEST_FORMAT'] as $type=>$q) 
-        if (in_array($type, $preferred)) 
-        	$sorted_types[array_search($type, $preferred)] = $type;
-     asort($sorted_types);
+	$sorted_types = array();
+	foreach ($_SERVER['REQUEST_FORMAT'] as $type => $q)
+		if (in_array($type, $preferred))
+			$sorted_types[array_search($type, $preferred)] = $type;
+	asort($sorted_types);
 	return $sorted_types;
 }
 /* If you want quick and dirty LANGUAGE-ACCEPT, call this function: */
@@ -105,18 +100,17 @@ function _LANGUAGE($preferred=array('en')) {
 	if (!isset($_SERVER['REQUEST_LANGUAGE'])) {
 		$_SERVER['REQUEST_LANGUAGE'] = array();
 		$languages = preg_split('/,\s*/', $_SERVER['HTTP_ACCEPT_LANGUAGE']);
-		er($languages);		
 		//if (isset($_SERVER['CONTENT_TYPE'])) $accept_types[] = $_SERVER['CONTENT_TYPE'];
 		foreach ($languages as $type) {
-			list($type, $q) = (strpos($type, 'q=') ? 
+			list($type, $q) = (strpos($type, 'q=') ?
 				preg_split('/;\s*q=/', $type) : array($type, 1));
-//			if (isset($known[$type])) 
+			//if (isset($known[$type]))
 			$_SERVER['REQUEST_LANGUAGE'][$type] = $q;
 		}
 	}
 	$sorted = array();
 	foreach ($_SERVER['REQUEST_LANGUAGE'] as $type=>$q) 
-		if (in_array($type, $preferred)) 
+		if (in_array($type, $preferred))
 			$sorted[array_search($type, $preferred)] = $type;
 	asort($sorted);
 	return $sorted;
@@ -147,9 +141,9 @@ function xmlrpc_decode_request($input, &$method, $encoding=NULL) {
 	return $params;
 }	}
 function unserialize_sxml($data) {
-     if ($data instanceof SimpleXMLElement) $data = (array) $data;
-     if (is_array($data)) foreach ($data as &$item) $item = unserialize_sxml($item);
-     return $data;
+	if ($data instanceof SimpleXMLElement) $data = (array) $data;
+	if (is_array($data)) foreach ($data as &$item) $item = unserialize_sxml($item);
+	return $data;
 }
 
 /* Determine if php's $_POST contains any payload */
@@ -170,7 +164,7 @@ function _RAW_POST() {
 }
 
 /* Collect some information about the request and return it */
-function _REQUEST() {	$fmt=_FORMAT(); return array(
+function _REQUEST() { $fmt = _FORMAT(); return array(
 	'scheme'=>(isset($_SERVER['https']) ? 'https' : 'http'),
 	'method'=>$_SERVER['REQUEST_METHOD'],
 	'format'=> array_pop($fmt),
@@ -185,20 +179,21 @@ function _AGAIN($data2=null) {
 	return $data1;
 }
 
-function safe_name($name) {
-		$name = preg_replace('/[^a-zA-Z0-9]/', '', $name);
-		if (!$name) $name = "index";
-		return $name; 
-	}
 function get_return_to($default = null) {
-		if (!$default && isset($_SERVER['HTTP_REFERER'])) $default = $_SERVER['HTTP_REFERER'];
-		$site_url = $_SERVER['SITE_URL'];
-		$r = (isset($_REQUEST['return_to']) ? $_REQUEST['return_to'] : $default);
-		if (substr($r, 0, strlen($site_url)) == $site_url) {
-			$r = substr($r, strlen($site_url));
-		}
-		return $r;
+	if (!$default && isset($_SERVER['HTTP_REFERER'])) $default = $_SERVER['HTTP_REFERER'];
+	$site_url = $_SERVER['SITE_URL'];
+	$r = (isset($_REQUEST['return_to']) ? $_REQUEST['return_to'] : $default);
+	if (substr($r, 0, strlen($site_url)) == $site_url) {
+		$r = substr($r, strlen($site_url));
 	}
+	return $r;
+}
+function safe_name($name) {
+	$name = preg_replace('/[^a-zA-Z0-9]/', '', $name);
+	if (!$name) $name = "index";
+	return $name;
+}
+
 /* DISPATCH */
 function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_', $pl = false) {
 	if (!is_array($args)) $args = preg_split('#/#',$args);
