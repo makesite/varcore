@@ -81,6 +81,7 @@ class WForm {
 	public $fields = array();
 
 	public $form_class = '';
+	public $form_id = '';
 	public $label_class = '';
 	public $hint_class = '';
 	public $row_error_class = '';
@@ -89,6 +90,8 @@ class WForm {
 	
 	public $input_header = '';
 	public $input_footer = '';
+
+	public $textarea_hack = 'data-drop-handler="embed_document"';
 
 	public $row_header = '<li>';
 	public $row_footer = '</li>';
@@ -211,7 +214,8 @@ class WForm {
 
 				$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
 
-				$input_class_exp = ($field['error'] && $this->input_error_class ? ' class="'.$this->input_error_class.'" ' : '');
+				$input_class = ($field['error'] ? $this->input_error_class : $this->input_class);
+				$input_class_exp = ($input_class ? ' class="'.$input_class.'" ' : '');
 				//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
 
 				/* Hack -- autoadjust enctype */
@@ -238,7 +242,7 @@ class WForm {
 						}
 						foreach ($field['options'] as $option) {
 							if (in_array($option['name'], $marked)) continue;
-							$selected = '';
+							$selected = ($option['selected'] && !$value) ? ' checked' : '';
 							$output .= $option['name'];
 							$output .= '<input type="checkbox" '.$selected.$input_class_exp.' name="'.$property.'['.$option['name'].']">'.PHP_EOL;
 						}
@@ -277,11 +281,7 @@ class WForm {
 						$row_wrap = 1;
 					break;
 					case 'textarea':
-						$drop_handler = '';
-						if ($property == 'body') {
-							$drop_handler = 'data-drop-handler="embed_document"';
-						}
-						$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$drop_handler.'>'.$value.'</textarea>'.PHP_EOL;
+						$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$this->textarea_hack.'>'.$value.'</textarea>'.PHP_EOL;
 						$row_wrap = 1;
 					break;
 					default:	/* text, */
@@ -315,8 +315,9 @@ class WForm {
 		$output .= '</form>';
 
 		$form_class = ($this->form_class ? ' class="'.$this->form_class.'"' : '');
+		$form_id = ($this->form_id ? ' id="'.$this->form_id.'"' : '');
 
-		$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_class.'>'.PHP_EOL;
+		$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_id.$form_class.'>'.PHP_EOL;
 		$output_begin .= $_method;
 
 		return $output_begin . $output;
