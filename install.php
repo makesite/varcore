@@ -32,7 +32,7 @@ $tests = array(
 		'method' => 'test_orm',
     ),
 	array(
-		'trigger' => 'libtempl.php',
+		'trigger' => 'domtempl.php',
 		'ext' => array('dom'),
     ),
 );
@@ -340,10 +340,7 @@ function test_orm($table) {
     if (file_exists('models') && is_dir('models')) {
         $models = ORM::loadModels( getcwd().'/models', '.*', '*.php');
     }
-	$all = get_declared_classes();
-	foreach ($all as $pclass)
-		if (is_subclass_of($pclass, 'ORM_Model'))
-			$class_list[] = $pclass;
+    $class_list = ORM::Classes();
 
     foreach ($class_list as $class) {
 
