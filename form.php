@@ -88,7 +88,7 @@ class WForm {
 	public $row_error_class = '';
 	public $label_error_class = '';
 	public $input_error_class = '';
-	
+
 	public $input_header = '';
 	public $input_footer = '';
 
@@ -215,7 +215,8 @@ class WForm {
 
 				$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
 
-				$input_class = ($field['error'] ? $this->input_error_class : $this->input_class);
+				$input_class = $field['class'] . ' ' . ($field['error'] ? $this->input_error_class : $this->input_class);
+				$input_class = trim($input_class);
 				$input_class_exp = ($input_class ? ' class="'.$input_class.'" ' : '');
 				//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
 
@@ -341,6 +342,7 @@ function formField($property, $input, $value='', $error=FALSE) {
 
 		$title = $property;
 		$tooltip = "";
+		$class = "";
 
 		$required = "";
 		$group = "main";
@@ -387,6 +389,7 @@ function formField($property, $input, $value='', $error=FALSE) {
 
 			'title'=>$title,
 			'hint' =>$tooltip,
+			'class'=>$class,
 
 			'error'=>$error,
 			'value'=>$value,
