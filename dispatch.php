@@ -29,7 +29,7 @@ $__tmp_off = strrpos($__tmp_url, '?'); if ($__tmp_off === false) $__tmp_off = st
 unset($_GET[(
 	$_SERVER['NODE_URI'] = ($__tmp_off === false ? $__tmp_url : substr($__tmp_url, 0, $__tmp_off))
 	)], $__tmp_off, $__tmp_url);
-if (!isset($argc)) { $argc = count(($argv = explode("/", $_SERVER['NODE_URI']))); $_SERVER['argc'] = 0; }
+if (!isset($argc) || $argc < 2) { $argc = count(($argv = preg_split("#/#", $_SERVER['NODE_URI'], -1, PREG_SPLIT_NO_EMPTY))); $_SERVER['argc'] = 0; }
 if (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) $_SERVER['REQUEST_METHOD'] = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']; 	
 if (isset($_POST['_method']) && (in_array(strtoupper($_POST['_method']),array('PUT','DELETE','POST','GET','HEAD','OPTIONS')))) {
 	$_SERVER['REQUEST_METHOD'] = strtoupper($_POST['_method']);	unset($_POST['_method']);	}
