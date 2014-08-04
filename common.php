@@ -146,7 +146,7 @@ function L($name, $lang = null) {
 		$append = func_get_args();
 		array_shift($append);
 		array_shift($append);
-		if (isset($_L[$name])) return vsprintf($_L[$name], $append);	
+		if (isset($_L[$name])) return vsprintf($_L[$name], $append);
 	}
 	if (isset($_L[$name])) return $_L[$name];
 	return $name;
