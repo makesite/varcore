@@ -350,6 +350,10 @@ function formField($property, $input, $value='', $error=FALSE) {
 		$attr = '';
 
 		if ($input) {
+			if (preg_match_all('#([a-z_\-]+)=([^a-zA-Z0-9])(.+?)(\2)#', $input, $mcs, PREG_SET_ORDER)) {
+				$attr .= $mc[0];
+				$input = str_replace($mc[0], "", $input);
+			}
 			if (preg_match("#`(.+)`#", $input, $mc)) {
 				$title = $mc[1];
 				$input = str_replace($mc[0], "", $input);
@@ -372,6 +376,9 @@ function formField($property, $input, $value='', $error=FALSE) {
 				else
 				if (substr($hint, 0, 1) == '@')
 					$group = substr($hint, 1);
+				else
+				if (substr($hint, 0, 1) == '.')
+					$class = substr($hint, 1);
 				else
 					$input .= $hint;
 			}
