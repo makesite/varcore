@@ -461,4 +461,211 @@ function formObject($object, $errors = NULL) {
 		return $fields;
 }
 
+function md_FormFill(&$fields, $values) {
+	$hash = array();
+	foreach ($fields as $i=>$field) {
+		$hash[$field['name']] = $i;
+	}
+
+	foreach ($values as $name=>$value) {
+		if (!isset($hash[$name])) continue;
+		$i = $hash[$name];
+		$field = $fields[$i];
+
+		$field['value'] = $value;
+		if (!is_array($value) && $field['options']) {
+			foreach ($field['options'] as $j=>$opt) {
+				if ($opt['value'] == $value) {
+					$opt['selected'] = 'selected';
+				} else {
+					$opt['selected'] = '';
+				}
+				$field['options'][$j] = $opt;
+			}
+		}
+		if (is_array($value) && $field['options']) {
+			foreach ($field['options'] as $j=>$opt) {
+				if (isset($value[$opt['name']])) {
+					$opt['selected'] = 'selected';
+				} else {
+					$opt['selected'] = '';
+				}
+				$field['options'][$j] = $opt;
+			}
+		}
+		$fields[$i] = $field;
+	}
+	return $fields;
+}
+
+function md_FormRender($fields) {
+	$out = '';
+	foreach ($fields as $field) {
+		$out .= $field['title'];
+		$out .= ($field['required'] ? '*' : '');
+		$out .= ': ';
+		//echo "//".$field['type']."//";
+		switch ($field['type']) {
+			case 'text':
+				$out .= ($field['value'] ? $field['value'] : '______');
+			break;
+			case 'checkbox':
+				$out .= '[' . ($field['value'] ? 'x' : ' ') . ']';
+			break;
+			case 'radio':
+				foreach ($field['options'] as $opt) {
+					$out .= '(' . ($opt['selected'] ? 'x' : ' ') . ')';
+					$out .= ' ' . $opt['name'];
+					$out .= ' ';
+				}
+			break;
+			case 'checklist':
+				foreach ($field['options'] as $opt) {
+					$out .= '[' . ($opt['selected'] ? 'x' : ' ') . ']';
+					$out .= ' ' . $opt['name'];
+					$out .= ' ';
+				}
+			break;
+			case 'textarea':
+				$out .= ($field['value'] ? "\n" . $field['value'] : '....');
+			break;
+			case 'file':
+				$out .= '@'.$field['value']['name'];
+			break;
+			default:
+				$out .= $field['value'];
+			break;
+		}
+		$out .= PHP_EOL;
+	}
+	return $out;
+}
+function md_FormField($str) {
+
+		if (!trim($str)) return NULL;
+
+		$parts = preg_split("#:#", $str);
+
+		if (sizeof($parts) < 2) return NULL;
+
+		$left = trim($parts[0]);
+		$right = trim($parts[1]);
+
+		$input = 'text';
+		$property = 'name';
+		$attr = '';
+		$group = 'main';
+
+		$title = '';
+		$tooltip = '';
+		$error = '';
+		$value = '';
+
+		$opts = FALSE;
+
+		$required = "";
+		if (strpos($left, '*') !== FALSE) {
+			$left = str_replace('*', '', $left);
+			$required = "required";
+		}
+		$title = $left;
+
+		if (preg_match("#@#", $right)) {
+			$input = 'file';
+		}
+
+		if (preg_match("#^\.\.\.+#", $right)) {
+			$input = 'textarea';
+		}
+
+		if (preg_match("#\(#", $right)) {
+			$input = 'radio';
+			$lines = preg_split("#\(#", $right);
+			$opts = array();
+			$i = 0;
+			foreach ($lines as $line) {
+				$mrk = preg_split("#\)#", $line);
+				if (sizeof($mrk) < 2) continue;
+				$name = trim($mrk[1]);
+				$checked = trim($mrk[0]) ? "checked" : "";
+				$opts[] = array(
+					'name' => $name,
+					'selected' => $checked,
+					'value' => $i++,
+				);
+			}
+		}
+
+		if (preg_match("#\[#", $right)) {
+			$input = 'checklist';
+			$lines = preg_split("#\[#", $right);
+			$opts = array();
+			$i = 0;
+			foreach ($lines as $line) {
+				$mrk = preg_split("#\]#", $line);
+				if (sizeof($mrk) < 2) continue;
+				$name = trim($mrk[1]);
+				$checked = trim($mrk[0]) ? "checked" : "";
+				$opts[] = array(
+					'name' => $name,
+					'selected' => $checked,
+					'value' => $i++,
+				);
+			}
+			if (sizeof($opts) == 1) {
+				$input = 'checkbox';
+			} else {
+				$value = array();
+			}
+		}
+
+
+		return array(
+			'name' => $property,
+			'type' => $input,
+			'attr' => trim($attr),
+			'required' => $required,
+			'group' => $group,
+
+			'title'=>$title,
+			'hint' =>$tooltip,
+
+			'error'=>$error,
+			'value'=>$value,
+
+			'options'=>$opts,
+		);
+}
+function md_Form($text) {
+
+	$lines = preg_split("#\n#", $text);
+	$fields = array();
+	$i = 0;
+	foreach ($lines as $line) {
+		$field = md_FormField($line);
+		if ($field) {
+			$field['name'] = 'field'.$i;
+			$fields[] = $field;
+			$i++;
+		}
+	}
+	return $fields;
+}
+
+function md_formalize($txt, $values = null, $action = false, $method = 'POST', $extra_html = array()) {
+	$fields = md_Form($txt);
+
+	$toHtml = $action ? true : false;
+
+	if ($values)
+		md_FormFill($fields, $values);
+
+	if ($toHtml) {
+		$form = new WForm($fields, $action, $method, $extra_html);
+		return $form->render();
+	}
+
+	return md_FormRender($fields);
+}
+
 ?>
