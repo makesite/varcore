@@ -152,12 +152,14 @@ function L($name, $lang = null) {
 	return $name;
 }
 
+
+if (!function_exists('_debug_log')) {
 $_debug_logs = array();
 function _debug_log($str) {
 	global $_debug_logs;
 	$_debug_logs[] = $str;
 	if (defined('HEAVY_DEBUG')) er($str);
-}
+} }
 
 function er() {
 	if (!defined('DEBUG')) return '';
