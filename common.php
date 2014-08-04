@@ -55,7 +55,75 @@ class WAuth {
 	}
 }
 
+class Language {
+	static $languages = array();
+	static $default = null;
+	static public function Add($name, $code, $suffix=null) {
+		if ($suffix === null) $suffix = $code;
+		self::$languages[] = array(
+			'name' => $name,
+			'code' => $code,
+			'suffix' => $suffix,
+		);
+	}
+	static public function loadFromConfig() {
+		$languages = load_config('languages');
+		$default = load_config('default_language');
+		if (!$languages) throw new Exception('$languages not defined in config.');
+		if (!$default) throw new Exception('$default_language not defined in config.');
+		foreach ($languages as $name => $suffix) {
+			$code = $suffix;
+			if (!$code) $code = $default;
+			//if ($suffix) $suffix = '_'.$suffix;
+
+			Language::Add($name, $code, $suffix);
+		}
+		Language::SetDefault($default);
+
+	}
+	static public function Supported() {
+		return self::$languages;
+	}
+	static public function SetDefault($code) {
+		$codes = self::Grab('code', null);
+		if (!in_array($code, $codes)) throw new Exception("Language with code '$code' is not defined.");
+		self::$default = $code;
+	}
+	static public function GetDefault() {
+		if (self::$default === null) throw new Exception("Default language not set.");
+		return self::$default;
+	}
+	static private function Grab($what, $by = null, $sep = '') {
+		if (!in_array($by, array(null, 'code', 'name', 'suffix')))
+			throw new Exception("Argument must be one of NULL|'code'|'name'|'suffix'");
+		$ret = array();
+		foreach (self::$languages as $l) {
+			$val = $l[$what];
+			if ($val) $val = $sep . $val;
+			if ($by)
+				$ret[$l[$by]] = $val;
+			else
+				$ret[] = $val;
+		}
+		return $ret;
+	}
+	static public function Names($by='code') {
+		return self::Grab('name', $by);
+	}
+	static public function Codes($by='name') {
+		return self::Grab('code', $by);
+	}
+	static public function Suffixes($by='code', $sep='_') {
+		return self::Grab('suffix', $by);
+	}
+}
+
+function _L() { return call_user_func_array('L', func_get_args()); }
 function L($name, $lang = null) {
+	if (!defined('LANGUAGE_DIR')) {
+		define('LANGUAGE_DIR', constant('APP_DIR') . '/language');
+		_debug_log("LANGUAGE_DIR constant not defined, using `".constant("LANGUAGE_DIR")."`");
+	}
 	static $use = null;
 	static $loaded = 0;
 	global $_L;
@@ -68,8 +136,11 @@ function L($name, $lang = null) {
 		}
 	}
 	if (!$loaded) {
-		include 'wlang.'.$use.'.php';
+		include constant('LANGUAGE_DIR') . '/lang.'.$use.'.php';
 		$loaded = 1;
+	}
+	if (!isset($_L[$name])) {
+		_debug_log("String `$name` not defined in lang `$use`.");
 	}
 	if (func_num_args() > 2) {
 		$append = func_get_args();
