@@ -82,6 +82,7 @@ class WForm {
 
 	public $form_class = '';
 	public $form_id = '';
+	public $input_class = '';
 	public $label_class = '';
 	public $hint_class = '';
 	public $row_error_class = '';
@@ -285,6 +286,7 @@ class WForm {
 						$row_wrap = 1;
 					break;
 					default:	/* text, */
+						if (!$input) $input = 'text';
 						if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value (".get_class($value).") that can't be converted to string");
 						$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
 					break;
