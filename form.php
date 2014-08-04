@@ -337,8 +337,8 @@ function formHtml($fields, $action, $method, $extra_html = array(), $opts = arra
 
 function formField($property, $input, $value='', $error=FALSE) {
 		/* Format field */
-		$large_fields = array('body', 'text', 'description');
-		$default = ($property == 'id' ? 'hidden' : (in_array($property,$large_fields) ? 'textarea' : 'text')); 
+		$large_fields = array('body', 'text', 'description', 'content');
+		$default = ($property == 'id' ? 'hidden' : (in_array($property, $large_fields) ? 'textarea' : 'text'));
 
 		$title = $property;
 		$tooltip = "";
