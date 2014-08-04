@@ -449,7 +449,7 @@ function formObject($object, $errors = NULL) {
 
 			$filterprop = $property.'_filter';
 			if (isset($object->$filterprop)) $field['filter'] = $object->$filterprop;
-			if (is_callable(array($object, $filterprop))) $field['filter'] = $filterprop;			
+			if (is_callable(array($object, $filterprop))) $field['filter'] = $filterprop;
 
 			$field['value'] = $value;
 			$field['error'] = isset($errors[$property]) ? $errors[$property] : FALSE;
