@@ -56,16 +56,19 @@ function do_POST() {
     switch ($_POST['action']) {
         case 'sync':
             include_once 'db.orm.php';
+            ORM::setMacro('lang', array('') );
             ORM::loadModels('models');
             ORM::Sync($_POST['class']);
         break;
         case 'wipe':
             include_once 'db.orm.php';
+            ORM::setMacro('lang', array('') );
             ORM::loadModels('models');
             ORM::FixClear($_POST['class']);
         break;
         case 'drop':
             include_once 'db.orm.php';
+            ORM::setMacro('lang', array('') );
             ORM::loadModels('models');
             ORM::Destroy($_POST['class']);
         break;
@@ -337,6 +340,7 @@ return $x;
 function test_orm($table) {
     if (!test_db()) return false; 
     include_once 'db.orm.php';
+    ORM::setMacro('lang', array('') );
     if (file_exists('models') && is_dir('models')) {
         $models = ORM::loadModels( getcwd().'/models', '.*', '*.php');
     }
