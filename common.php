@@ -335,7 +335,7 @@ function http_response_code($code) {
 	);
 	if (!isset($http_codes[$code])) return false;
 	$protocol = (isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0');
-	header($protocol . ' ' . $http_codes[$code] . ' ' . $text);
+	header($protocol . ' ' . $code . ' ' . $http_codes[$code]);
 	return $code;
 }
 }
