@@ -172,6 +172,27 @@ function _REQUEST() { $fmt = _FORMAT(); return array(
 	'payload'=>_PAYLOAD(),
 ); }
 
+/* Collect some information about uploaded files */
+function _FILES() {
+	$files = array();
+	foreach ($_FILES as $one => $arr) {
+		$n = count($arr['error']);
+		$mult = array();
+		for ($i = 0; $i < $n; $i++) {
+			$FILE = array(
+				'name' => $arr['name'][$i],
+				'type' => $arr['type'][$i],
+				'tmp_name' => $arr['tmp_name'][$i],
+				'error' => $arr['error'][$i],
+				'size' => $arr['size'][$i],
+			);
+			$mult[] = $FILE;
+		}
+		$files[$one] = $mult;
+	}
+	return $files;
+}
+
 /* Return reversed dispatch */
 function _AGAIN($data2=null) {
 	$data1 = preg_split('#/#', get_return_to());
