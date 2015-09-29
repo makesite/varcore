@@ -215,6 +215,62 @@ function safe_name($name) {
 	return $name;
 }
 
+/* CDISPATCH-2 */
+function safe_name2(&$args) {
+	$next = array_shift($args);
+	if (preg_match('/^[0-9]/', $next)) {
+		array_unshift($args, $next);
+		return 'index';
+	}
+	return safe_name($next);
+}
+function cdispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_', $pl = false) {
+	if (!is_array($args)) $args = preg_split('#/#',$args);
+	if ($fna === null) $fna = $fn . '_';
+	if (!is_array($cycle)) $cycle = array(FALSE);
+	$next = safe_name(array_shift($args));
+	if ($dir) {
+		$filename = rtrim($dir,'/') . '/'. $next . ".php";
+		_debug_log('Searching for file "'.$filename.'"');
+		if (file_exists($filename)) {
+			if ($fnx !== FALSE) {
+				$fn = $next.$fnx.$fn; $fna = $next.$fnx.$fna;
+				$next = safe_name(array_shift($args));
+			}
+			_debug_log('Including file "'.$filename. '"');
+			include_once($filename);
+		}
+	}
+	$class = ucfirst($next) . 'Controller';
+	_debug_log('Checking for class "'.$class.'"');
+	if (!class_exists($class)) {
+		return false;
+	}
+	$obj = new $class;
+	$next = safe_name2($args);
+	foreach ($cycle as $fnc) {
+		if ($fnc !== FALSE) $fnc = $fnc.'_';
+		$fn_name = $fn.$fnc.$next; $fna_name = $fna.$fnc.$next;
+		$fn_call = array($obj, $fn_name);
+		$fna_call = array($obj, $fna_name);
+		_debug_log('Looking for methods '.$fn_name. '(), '.$fna_name.'():');
+		if ($fn && is_callable($fn_call))
+		{
+			_debug_log(' Calling method "'.$fn_name. '($,$,$)"');
+			if ($pl) $args = array($args, $pl);
+			return call_user_func_array($fn_call, $args);
+		}
+		else if ($fna !== false && is_callable($fna_call))
+		{
+			_debug_log(' Calling method "'.$fna_name. '(@)"');
+			if ($pl) return call_user_func_array($fna_call, array($args, $pl));
+			return call_user_func($fna_call, $args);
+		}
+		_debug_log(' Not found.');
+	}
+	return false;// $args;
+}
+
 /* DISPATCH */
 function dispatch($args, $fn='', $fna=null, $cycle=array(FALSE), $dir='', $fnx='_', $pl = false) {
 	if (!is_array($args)) $args = preg_split('#/#',$args);
