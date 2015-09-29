@@ -171,12 +171,12 @@ function er() {
 	echo $ret;
 }
 
-function mini_form($action, $submit_label, $hiddens = array()) {
+function mini_form($action, $submit_label, $hiddens = array(), $classes = array()) {
 	$ret = '';
-	$ret .= '<form action="'.$action.'" method="POST">'.PHP_EOL;
+	$ret .= '<form action="'.$action.'" method="POST"'.(isset($classes['form']) ? ' class="'.$classes['form'].'"' : '').'>'.PHP_EOL;
 	foreach ($hiddens as $name=>$value)
 	$ret .= "\t".'<input type="hidden" name="'.$name.'" value="'.$value.'" />'.PHP_EOL;
-	$ret .= "\t".'<input type="submit" value="'.$submit_label.'"/>'.PHP_EOL;
+	$ret .= "\t".'<button type="submit"'.(isset($classes['button']) ? ' class="'.$classes['button'].'"' : '').'>'.$submit_label.'</button>'.PHP_EOL;
 	$ret .= '</form>';
 	return $ret;
 }
