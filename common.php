@@ -204,13 +204,14 @@ function go_to($url) {
 function draw_pages($url, $page, $quantity, $max, $style = 0) {
 	$styles = array( 
 		array('first', 'prev', 'next', 'last'),
-		array('&lt;&lt;', '&lt;', '&gt;', '&gt;&gt;'),
+		array('&laquo;', '&lt;', '&gt;', '&raquo;'),
 	);
 	$quantity = min($max, $quantity);
 	if ($quantity == 0) return array();
 	$pages = ceil($max / $quantity);
 	if ($page < 1 || $page > $pages) return array();
 	$ret = array();
+	if ($page > 1)
 	$ret[] = array(
 		'href' => $url.'1',
 		'text' => $styles[$style][0],//'first',
@@ -236,6 +237,7 @@ function draw_pages($url, $page, $quantity, $max, $style = 0) {
 		'text' => $styles[$style][2],//'next',,
 		'class' => '', 
 	);
+	if ($page < $pages)
 	$ret[] = array(
 		'href' => $url.($pages),
 		'text' => $styles[$style][3],//'last',
