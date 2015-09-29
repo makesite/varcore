@@ -762,7 +762,7 @@ function md_FormField($str) {
 		);
 }
 function md_Form($text) {
-
+	if (is_array($text)) $lines = $text; else
 	$lines = preg_split("#\n#", $text);
 	$fields = array();
 	$i = 0;
