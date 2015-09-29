@@ -80,15 +80,23 @@ class WForm {
 
 	public $fields = array();
 
+	public $form_wrap = true;
 	public $form_class = '';
 	public $form_id = '';
 	public $input_class = '';
+	public $checkbox_class = '';
+	public $radio_class = '';
+	public $labels = true;
+	public $input_id_extra = '';
 	public $label_class = '';
 	public $hint_class = '';
 	public $row_error_class = '';
 	public $label_error_class = '';
 	public $input_error_class = '';
-	
+
+	public $fieldset_header = '<fieldset name="%s">';
+	public $fieldset_footer = '</fieldset>';
+
 	public $input_header = '';
 	public $input_footer = '';
 
@@ -187,7 +195,8 @@ class WForm {
 			if ($this->fieldsets[$fieldset]['html-preOut'])
 				$output .= $this->fieldsets[$fieldset]['html-preOut'] . PHP_EOL;
 
-			$output .= '<fieldset name="'.$fieldset.'">'.PHP_EOL;
+			if ($this->fieldset_header)
+				$output .= sprintf($this->fieldset_header, $fieldset) . PHP_EOL;
 
 			if ($this->fieldsets[$fieldset]['html-preIn'])
 				$output .= $this->fieldsets[$fieldset]['html-preIn'] . PHP_EOL;
@@ -199,6 +208,8 @@ class WForm {
 				$property = $field['name'];
 				$input = $field['type'];
 				$title = $field['title'];
+
+				$id_name = preg_replace('#[^a-zA-Z0-9]#', '', $field['name']).$this->input_id_extra.'-field';
 
 				/* HACK!!! DO NOT USE HTML5 required field */
 				if (defined('DEBUG')) $field['required'] = '';
@@ -215,16 +226,26 @@ class WForm {
 
 				$label_class_exp = ($label_class ? ' class="'.$label_class.'"' : '');
 
-				$input_class = ($field['error'] ? $this->input_error_class : $this->input_class);
+				$input_class = $field['class'] . ' ' . ($field['error'] ? $this->input_error_class : $this->input_class);
+				$input_class = trim($input_class);
 				$input_class_exp = ($input_class ? ' class="'.$input_class.'" ' : '');
 				//$hint_class = ($field['hint'] ? ' class="hint" ' : '');
+
+				$radio_class = $field['class'] . ' ' . ($field['error'] ? $this->input_error_class : $this->radio_class);
+				$radio_class_exp = ($radio_class ? ' class="'.$radio_class.'" ' : '');
+
+				$checkbox_class = $field['class'] . ' ' . ($field['error'] ? $this->input_error_class : $this->checkbox_class);
+				$checkbox_class_exp = ($checkbox_class ? ' class="'.$checkbox_class.'" ' : '');
+
 
 				/* Hack -- autoadjust enctype */
 				if ($input == 'file') $enc = ' enctype="multipart/form-data"';
 
 				if ($input != 'hidden') {
 					$output .= sprintf($this->row_header, ($field['error'] ? $this->row_error_class : '') );
-					$output .= '<label for="'.$property.'-field"'.$label_class_exp.'>'.$title.':</label>';
+					if ($this->labels) {
+						$output .= '<label for="'.$id_name.'"'.$label_class_exp.'>'.$title.':</label>';
+					}
 					$output .= $this->input_header;
 					$row_wrap = 1;
 				}
@@ -251,7 +272,7 @@ class WForm {
 						$row_wrap = 1;
 					break;
 					case 'select':
-						$output .= '<select id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'">'.PHP_EOL;
+						$output .= '<select id="'.$id_name.'"'.$input_class_exp.' name="'.$property.'">'.PHP_EOL;
 						if ($field['options']) foreach ($field['options'] as $option) {
 							$output .= '<option value="'.$option['value'].'"'.
 								($option['selected'] ? ' selected' : '').
@@ -262,13 +283,14 @@ class WForm {
 					break;
 					case 'radio':
 						if ($field['options']) {
-							#$output .= '<select id="'.$property.'-field"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
+							#$output .= '<select id="'.$id_name.'"'.$prob_class.' name="'.$property.'">'.PHP_EOL;
 							foreach ($field['options'] as $i=>$option) {
-								$output .= '<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
-									'id="'.$property.'-field'.$i.'"'.
+								$output .=
+									'<label for="'.$id_name.$i.'" '.$radio_class_exp.'>'.
+									'<input type="radio" value="'.$option['value'].'" name="'.$property.'"'.
+									'id="'.$id_name.$i.'"'.
 									($option['selected'] ? ' checked' : '').
 									'>'.
-									'<label for="'.$property.'-field'.$i.'">'.
 									$option['name'].
 									'</label>';
 							}
@@ -278,17 +300,17 @@ class WForm {
 					break;
 					case 'checkbox':
 						$selected = ($value ? ' checked' : '');
-						$output .= '<input id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
+						$output .= '<input id="'.$id_name.'"'.$input_class_exp.' type="'.$input.'" value="1" name="'.$property.'"'.$selected.' />'.PHP_EOL;
 						$row_wrap = 1;
 					break;
 					case 'textarea':
-						$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' name="'.$property.'"'.$this->textarea_hack.'>'.$value.'</textarea>'.PHP_EOL;
+						$output .= '<textarea cols="80" rows="24" placeholder="'.$title.'" id="'.$id_name.'"'.$input_class_exp.' name="'.$property.'"'.$this->textarea_hack.'>'.$value.'</textarea>'.PHP_EOL;
 						$row_wrap = 1;
 					break;
 					default:	/* text, */
 						if (!$input) $input = 'text';
 						if (is_object($value)) throw new Exception("Field <b>".$property."</b> has value (".get_class($value).") that can't be converted to string");
-						$output .= '<input size="80" placeholder="'.$title.'" id="'.$property.'-field"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['required'].' />'.PHP_EOL;
+						$output .= '<input size="80" placeholder="'.$title.'" id="'.$id_name.'"'.$input_class_exp.' type="'.$input.'" name="'.$property.'" value="'.$value.'" '.$field['attr'].' '.$field['required'].' />'.PHP_EOL;
 					break;
 				}
 
@@ -307,20 +329,25 @@ class WForm {
 			if ($this->fieldsets[$fieldset]['html-postIn'])
 				$output .= $this->fieldsets[$fieldset]['html-postIn'] . PHP_EOL;
 
-			$output .= '</fieldset>'.PHP_EOL;
+			if ($this->fieldset_footer)
+				$output .= $this->fieldset_footer . PHP_EOL;
 
 			if ($this->fieldsets[$fieldset]['html-postOut'])
 				$output .= $this->fieldsets[$fieldset]['html-postOut'] . PHP_EOL;
 
 		}
 
-		$output .= '</form>';
+		$output_begin = '';
 
-		$form_class = ($this->form_class ? ' class="'.$this->form_class.'"' : '');
-		$form_id = ($this->form_id ? ' id="'.$this->form_id.'"' : '');
+		if ($this->form_wrap) {
+			$output .= '</form>';
 
-		$output_begin = '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_id.$form_class.'>'.PHP_EOL;
-		$output_begin .= $_method;
+			$form_class = ($this->form_class ? ' class="'.$this->form_class.'"' : '');
+			$form_id = ($this->form_id ? ' id="'.$this->form_id.'"' : '');
+
+			$output_begin .= '<form action="'.$action.'" method="'.$method.'"'.$enc.$form_id.$form_class.'>'.PHP_EOL;
+			$output_begin .= $_method;
+		}
 
 		return $output_begin . $output;
 	}
@@ -336,11 +363,12 @@ function formHtml($fields, $action, $method, $extra_html = array(), $opts = arra
 
 function formField($property, $input, $value='', $error=FALSE) {
 		/* Format field */
-		$large_fields = array('body', 'text', 'description');
-		$default = ($property == 'id' ? 'hidden' : (in_array($property,$large_fields) ? 'textarea' : 'text')); 
+		$large_fields = array('body', 'text', 'description', 'content');
+		$default = ($property == 'id' ? 'hidden' : (in_array($property, $large_fields) ? 'textarea' : 'text'));
 
 		$title = $property;
 		$tooltip = "";
+		$class = "";
 
 		$required = "";
 		$group = "main";
@@ -425,6 +453,7 @@ function formObject($object, $errors = NULL) {
 				}
 			}
 
+			if ($input === null && isset($desc['*'])) $input = $desc['*'];
 /*
 			if (is_callable(array($object, $property.'_widget'))) {
 				$caller = $property."_widget";
@@ -664,6 +693,8 @@ function md_formalize($txt, $values = null, $action = false, $method = 'POST', $
 
 	if ($toHtml) {
 		$form = new WForm($fields, $action, $method, $extra_html);
+		$form->row_header = '<div>';
+		$form->row_footer = '</div>';
 		return $form->render();
 	}
 
