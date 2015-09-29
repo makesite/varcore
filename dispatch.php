@@ -1,36 +1,36 @@
 <?php
 error_reporting(E_ALL);
 /*
- * As soon as you include this file, your (super)global namespace gets polluted in 
+ * As soon as you include this file, your (super)global namespace gets polluted in
  * the following way:
- * 	$_SERVER['REQUEST_METHOD'] will contain over-rides from $_POST["_method"] and 
+ *  $_SERVER['REQUEST_METHOD'] will contain over-rides from $_POST["_method"] and
  *    $_SERVER["HTTP_X_HTTP_METHOD_OVERRIDE"].
  *  $_POST['_method'] will be unset() if present!
  *  $_SERVER['NODE_URI'] will contain approximate resource identifier.
  *  $_SERVER['SITE_PATH'] will contain approximate controller path.
  *  $_SERVER['SITE_URL'] will contain approximate BASE_URL.
- *  $_POST[] values will be urldecoded if $_SERVER['CONTENT_TYPE'] is 
- *     'application/x-www-form-urlencoded'
+ *  $_POST[] values will be urldecoded if $_SERVER['CONTENT_TYPE'] is
+ *    'application/x-www-form-urlencoded'
  */
 $__tmp_url = ($_SERVER['REQUEST_URI'] == $_SERVER['SCRIPT_NAME'] ?
 	substr($_SERVER['REQUEST_URI'], 0, strrpos($_SERVER['REQUEST_URI'], '/') + 1)
 	: $_SERVER['REQUEST_URI']);
 $__tmp_url = urldecode($__tmp_url);
-$_SERVER['SITE_URL'] = 
-	(isset($_SERVER['https']) || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://") . 
-	($_SERVER['HTTP_HOST'] ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']). 
+$_SERVER['SITE_URL'] =
+	(isset($_SERVER['https']) || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://") .
+	($_SERVER['HTTP_HOST'] ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME']).
 	($_SERVER['SITE_PATH'] = substr($__tmp_url, 0, strlen($__tmp_url)
 		- strlen(urldecode($_SERVER['QUERY_STRING']))
 		- (substr($__tmp_url, -1) == '?' ? 1 : 0)
 		));
 $__tmp_url = substr($_SERVER['REQUEST_URI'], strlen($_SERVER['SITE_PATH']));
 $__tmp_url = urldecode($__tmp_url);
-$__tmp_off = strrpos($__tmp_url, '?'); if ($__tmp_off === false) $__tmp_off = strpos($__tmp_url, '&'); 
+$__tmp_off = strrpos($__tmp_url, '?'); if ($__tmp_off === false) $__tmp_off = strpos($__tmp_url, '&');
 unset($_GET[(
 	$_SERVER['NODE_URI'] = ($__tmp_off === false ? $__tmp_url : substr($__tmp_url, 0, $__tmp_off))
 	)], $__tmp_off, $__tmp_url);
 if (!isset($argc)) { $argc = count(($argv = explode("/", $_SERVER['NODE_URI']))); $_SERVER['argc'] = 0; }
-if (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) $_SERVER['REQUEST_METHOD'] = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']; 	
+if (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) $_SERVER['REQUEST_METHOD'] = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'];
 if (isset($_POST['_method']) && (in_array(strtoupper($_POST['_method']),array('PUT','DELETE','POST','GET','HEAD','OPTIONS')))) {
 	$_SERVER['REQUEST_METHOD'] = strtoupper($_POST['_method']);	unset($_POST['_method']);	}
 if (isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/x-www-form-urlencoded') {
@@ -40,7 +40,7 @@ if (isset($_SERVER['CONTENT_TYPE']) && $_SERVER['CONTENT_TYPE'] == 'application/
 	}
 }
 
-/* Aditionally, _GET() and _POST() functions provide convinient shortcuts for 
+/* Aditionally, _GET() and _POST() functions provide convinient shortcuts for
  * very popular REQUEST use-cases: */
 function _GET() { global $argv; return $argv + $_GET; }
 function _POST() { return _FORMED() ? $_POST + $_GET : $_POST + array('raw'=>_RAW_POST()); }
@@ -50,10 +50,10 @@ function _REST() { return preg_split('#/#',$_SERVER['NODE_URI']) + _PAYLOAD(); }
 
 function _IP() { /* Get request IP-address */
 	return isset($_SERVER['HTTP_X_FORWARDED_FOR']) ?
-		$_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']; 
+		$_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
 }
 
-/* If you want some quick and dirty CLI functionality, call this function: */ 
+/* If you want some quick and dirty CLI functionality, call this function: */
 function _CLI() { global $argc, $argv; if (!empty($_SERVER['argc'])) {
 	/* First argument must be a HTTP REQUEST METHOD */
 	$_SERVER['REQUEST_METHOD'] = strtoupper(array_shift($argv)); $argc--;
@@ -63,9 +63,9 @@ function _CLI() { global $argc, $argv; if (!empty($_SERVER['argc'])) {
 		unset($_POST); $_POST = json_decode(array_pop($argv), TRUE);
 		$argc--;
 	}
-	$_SERVER['NODE_URI'] = join('/', $argv);	
+	$_SERVER['NODE_URI'] = join('/', $argv);
 } }
-/* If you want quick and dirty HTTP-ACCEPT functionality, call this function: */ 
+/* If you want quick and dirty HTTP-ACCEPT functionality, call this function: */
 function _FORMAT($preferred=array('html'), $formats = array(
 	'text/plain' => 'text',
 	'text/html' => 'html',
@@ -109,7 +109,7 @@ function _LANGUAGE($preferred=array('en')) {
 		}
 	}
 	$sorted = array();
-	foreach ($_SERVER['REQUEST_LANGUAGE'] as $type=>$q) 
+	foreach ($_SERVER['REQUEST_LANGUAGE'] as $type=>$q)
 		if (in_array($type, $preferred))
 			$sorted[array_search($type, $preferred)] = $type;
 	asort($sorted);
@@ -118,9 +118,9 @@ function _LANGUAGE($preferred=array('en')) {
 /* If you want quick and dirty XML-RPC functionality, call this function: */
 function _XMLRPC($data=null) {
 	if ($_SERVER['REQUEST_METHOD'] != 'POST'
-	|| !isset($_SERVER['CONTENT_TYPE']) 
-	|| !isset($_SERVER['CONTENT_LENGTH']) 
-	|| ($_SERVER['CONTENT_TYPE'] != 'text/xml' 
+	|| !isset($_SERVER['CONTENT_TYPE'])
+	|| !isset($_SERVER['CONTENT_LENGTH'])
+	|| ($_SERVER['CONTENT_TYPE'] != 'text/xml'
 	&&	$_SERVER['CONTENT_TYPE'] != 'application/xml')
 	) return FALSE;
 	$method = '';
