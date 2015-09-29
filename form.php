@@ -721,6 +721,28 @@ function md_FormField($str) {
 			}
 		}
 
+		if (preg_match("#\{#", $right)) {
+			$input = 'select';
+			$lines = preg_split("#,#", $right);
+			$opts = array();
+			$i = 0;
+			foreach ($lines as $line) {
+				$line = trim($line, '{} ');
+				$mrk = preg_match("#\(.+\)#", $line);
+				$name = trim($line, '() ');
+				$checked = $mrk ? "checked" : "";
+				$opts[] = array(
+					'name' => $name,
+					'selected' => $checked,
+					'value' => $i++,
+				);
+			}
+			if (sizeof($opts) == 1) {
+				$input = 'checkbox';
+			} else {
+				$value = array();
+			}
+		}
 
 		return array(
 			'name' => $property,
