@@ -188,6 +188,8 @@ function go_to($url) {
 		$to = $url;
 		if (!$to) $to = 'index';
 		echo "<h1>Redirecting</h1>";
+		echo "goto <a href='".$_SERVER['SITE_URL'].$url."'>".$to."</a>";
+		echo "<hr>";
 		echo "<pre>";
 		print_r($_debug_logs);
 		echo "</pre>";
