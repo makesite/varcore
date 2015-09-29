@@ -434,6 +434,49 @@ function formField($property, $input, $value='', $error=FALSE) {
 		);
 }
 
+$formMacros = array();
+function formSetMacro($name, $vals) {
+	global $formMacros;
+	$formMacros['MACRO_'.$name] = $vals;
+}
+function formGetMacro($name) {
+	global $formMacros;
+	if (!isset($formMacros['MACRO_'.$name])) {
+		throw new Exception("Undefined macro `".$name."`");
+	}
+	return $formMacros['MACRO_'.$name];
+}
+
+
+function objectCollectStatic($class, $property) {
+	$arr = array();
+	if (isset($class::$$property)) {
+		$arr = $class::$$property;
+	}
+
+	$parent_class = $class;
+	while (($parent_class = get_parent_class($parent_class))) {
+		if (isset($parent_class::$$property))
+			$arr = array_merge($parent_class::$$property, $arr);
+	}
+
+	$expanded = array(); /* Expand macros */
+	foreach ($arr as $name => $val) {
+		if (strpos($name, '@') !== false) {
+			preg_match('#@(\w+)#', $name, $mc);
+			$mname = $mc[1];
+			$sname = substr($name, 0, strlen($name) - strlen($mname) - 1);
+			$macro = formGetMacro($mname);
+			foreach ($macro as $m) {
+				$expanded[$sname.($m ? '_'.$m : '')] = $val;
+			}
+		} else {
+			$expanded[$name] = $val;
+		}
+	}
+	return $expanded;
+}
+
 function formObject($object, $errors = NULL) {
 
 		if (!is_object($object)) throw new Exception("Argument 1 not an Object");
@@ -444,7 +487,7 @@ function formObject($object, $errors = NULL) {
 
 		$desc = array();
 		if (isset($object->FIELDS)) $desc = $object->FIELDS;
-		else if (isset($class::$_form)) $desc = $class::$_form;
+		else if (isset($class::$_form)) $desc = objectCollectStatic($class, '_form');
 		else if (is_callable(array($object, 'asFieldset'))) $desc = $object->asFieldset();
 
 		foreach ($object as $property=>$value) {
