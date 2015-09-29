@@ -526,6 +526,11 @@ function formObject($object, $errors = NULL) {
 			if (isset($object->$peersprop)) {
 				//$input = 'select';
 				$field['options'] = $object->$peersprop;
+				foreach ($field['options'] as $i=>$opt) {
+					if ($opt['selected'] === null)
+						$field['options'][$i]['selected'] =
+							(bool)($opt['value'] == $value);
+				}
 			}
 
 			$testprop = $property.'_test';
@@ -610,6 +615,18 @@ function md_FormRender($fields) {
 					$out .= ' ' . $opt['name'];
 					$out .= ' ';
 				}
+			break;
+			case 'select':
+				$coma = ' ';
+				$out .= '{';
+				foreach ($field['options'] as $opt) {
+					$out .= $coma;
+					$out .= $opt['selected'] ? '(' : '';
+					$out .= $opt['name'];
+					$out .= $opt['selected'] ? ')' : '';
+					$coma = ', ';
+				}
+				$out .= ' }';
 			break;
 			case 'textarea':
 				$out .= ($field['value'] ? "\n" . $field['value'] : '....');
